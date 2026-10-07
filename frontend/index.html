@@ -248,7 +248,7 @@
     <h1>PhishEye</h1>
 
     <p class="subtitle">
-        Advanced AI-powered phishing and suspicious URL detection system.<br>
+        Rule-based phishing and suspicious URL analysis.<br>
         
     </p>
 
@@ -283,25 +283,58 @@
     </div>
 
     <div class="footer">
-        PhishEye © 2026 • AI-powered phishing detection platform
+        PhishEye © 2026 • Rule-based phishing URL analyzer
     </div>
 
 </div>
 
 <script>
 
+    const API_URL = "http://localhost:8080/analyze";
+
+    document.getElementById("urlInput").addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            analyzeURL();
+        }
+    });
+
+    function showError(message){
+
+        document.getElementById("result").style.display = "block";
+        document.getElementById("riskScore").innerText = "Error";
+        document.getElementById("riskLevel").innerText = message;
+        document.getElementById("checkedUrl").innerText = "";
+        document.getElementById("reasonsList").innerHTML = "";
+    }
+
     async function analyzeURL(){
 
-        const url = document.getElementById("urlInput").value;
+        const url = document.getElementById("urlInput").value.trim();
 
-        const response = await fetch(
-            `http://localhost:8080/analyze?url=${encodeURIComponent(url)}`
-        );
+        if (!url) {
+            showError("Please enter a URL.");
+            return;
+        }
+
+        let response;
+
+        try {
+            response = await fetch(`${API_URL}?url=${encodeURIComponent(url)}`);
+        } catch (error) {
+            showError("Could not reach the backend. Is it running on localhost:8080?");
+            return;
+        }
 
         const data = await response.json();
 
+        if (!response.ok) {
+            showError(data.error || "The URL could not be analyzed.");
+            return;
+        }
+
         document.getElementById("result").style.display = "block";
 
+        // innerText (not innerHTML) so the URL is shown as text and never executed (XSS protection)
         document.getElementById("riskScore").innerText =
             `Risk Score: ${data.riskScore}`;
 
@@ -315,6 +348,12 @@
             document.getElementById("reasonsList");
 
         reasonsList.innerHTML = "";
+
+        if (data.reasons.length === 0) {
+            const li = document.createElement("li");
+            li.innerText = "No phishing indicators found.";
+            reasonsList.appendChild(li);
+        }
 
         data.reasons.forEach(reason => {
 
